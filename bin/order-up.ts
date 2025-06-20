@@ -1,20 +1,31 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
 import { OrderUpStack } from '../lib/order-up-stack';
+import { DatabaseStack } from '../lib/database/database-stack';
+import { VPCStack } from '../lib/networking/vpc-stack';
+import { LambdaStack } from '../lib/lambda/lambda-stack';
+import { APIStack } from '../lib/api-gateway/api';
+import { FrontendStack } from '../lib/frontend/frontend';
 
 const app = new cdk.App();
-new OrderUpStack(app, 'OrderUpStack', {
-  /* If you don't specify 'env', this stack will be environment-agnostic.
-   * Account/Region-dependent features and context lookups will not work,
-   * but a single synthesized template can be deployed anywhere. */
+// new OrderUpStack(app, 'OrderUpStack', { });
 
-  /* Uncomment the next line to specialize this stack for the AWS Account
-   * and Region that are implied by the current CLI configuration. */
-  // env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
-
-  /* Uncomment the next line if you know exactly what Account and Region you
-   * want to deploy the stack to. */
-  // env: { account: '123456789012', region: 'us-east-1' },
-
-  /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
+const orderUpDBStack = new DatabaseStack(app, 'OrderUpDBStack', {
+  tableName: 'OrderUpDB'
 });
+
+const orderUpVPCStack = new VPCStack(app, 'OrderUpVPCStack', { });
+
+const orderUpLambdaStack = new LambdaStack(app, 'OrderUpLambdaStack', orderUpDBStack.table, { });
+
+const orderUpAPIStack = new APIStack(app, 'OrderUpAPIStack', orderUpLambdaStack.ordersFunction, { });
+
+const orderUpFontendStack = new FrontendStack(app, 'OrderUpFrontendStack', {
+  api: orderUpAPIStack.api, 
+  vpc: orderUpVPCStack.vpc,
+});
+
+orderUpLambdaStack. addDependency (orderUpDBStack) ;
+orderUpAPIStack.addDependency(orderUpLambdaStack);
+orderUpFontendStack.addDependency(orderUpVPCStack);
+orderUpFontendStack.addDependency(orderUpAPIStack);
